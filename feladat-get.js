@@ -1,49 +1,60 @@
-var http = require('http');    
-var fs = require('fs'); 
 
-http.createServer(function (req, res) {        
+var http = require('http');
+var fs = require('fs');
+var mysql = require('mysql2');
 
-    res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});  
-    var url = req.url; 
+http.createServer(function (req, res) {
+  var url = req.url;
 
-    // OLDAL1 – ŰRLAP
-    if (url === '/oldal1') {  
-        fs.readFile('oldal1.html', 'utf8', function (err, data) {  
-            res.end(data); 
-        });                 
-    }  
+  if (url === '/oldal1') {
+    fs.readFile('oldal1.html', 'utf8', function (err, data) {
+      res.end(data);
+    });
+  }
 
-    // OLDAL2 – POST feldolgozás
-    if (url === '/oldal2') {  
+  if (url === '/oldal2') {
+    if (req.method === 'POST') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
 
-        if (req.method === 'POST') { 
-            req.on('data', function (data) { 
+      req.on('data', function (data) {
+        // POST törzs feldarabolása, + -> szóköz
+        data = data.toString().replaceAll("+"," ").split('&');
+        var d0 = data[0].split("=");
+        var d1 = data[1].split("=");
+        var d2 = data[2].split("=");
 
-                data = data.toString().replaceAll("+", " ").split("&");
+        var nev = d0[1];
+        var cim = d1[1];
+        var kor = parseInt(d2[1]);
 
-                data0 = data[0].split("=");
-                data1 = data[1].split("=");
-                data2 = data[2].split("=");
+        // Kiírás
+        res.write("Név: " + nev + "<br>");
+        res.write("Cím: " + cim + "<br>");
+        res.write("Eletkor: " + kor + "<br>");
+        res.write((kor < 18 ? "kiskorú" : "nagykorú") + "<br>");
 
-                var nev = data0[1];
-                var cim = data1[1];
-                var eletkor = parseInt(data2[1]);
+        // Mentés adatbázisba 
+        var con = mysql.createConnection({
+          host: 'localhost',
+          user: 'root',
+          password: '',
+          database: 'feladat1'
+        });
 
-                res.write("Név: " + nev + "<br>");
-                res.write("Cím: " + cim + "<br>");
-                res.write("Életkor: " + eletkor + "<br>");
-
-                if (eletkor < 18) {
-                    res.write("kiskorú");
-                } else {
-                    res.write("nagykorú");
-                }
-
-                res.end();
+        con.connect(function (err) {
+          if (err) throw err;
+          con.query('INSERT INTO ment(nev, cim, kor) VALUES(?,?,?)',
+            [nev, cim, kor],
+            function (err, result) {
+              if (err) throw err;
+              res.end('/oldal1Vissza az űrlapra</a>');
             });
-        }
+        });
+      });
     }
+  }
 
-}).listen(4000, function () {  
-    console.log("server started at port 4000");  
+}).listen(4000, function () {
+  console.log("server start at port 4000");
 });
+``
